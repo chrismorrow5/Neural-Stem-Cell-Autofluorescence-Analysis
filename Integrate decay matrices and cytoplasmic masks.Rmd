@@ -1,0 +1,167 @@
+
+
+```{r}
+###Set Working Directory####
+setwd("C:/Users/cmorrow5/Desktop/011420 2DG N1 Q and A/")
+
+rm(list=ls())
+library(tiff)
+library(tcltk)
+library(plyr)
+library(dplyr)
+filenames <- data.frame(read.csv('C:/Users/cmorrow5/Desktop/011420 2DG N1 Q and A/test_key.csv'))
+
+pb <- tkProgressBar(title = "progress bar", min = 0,
+                    max = 1, width = 300)
+for (i in 1:nrow(filenames)) {
+#i <- 1
+image_info <- filenames[i,]
+
+###Set NAD(P)H file location####
+path_stringN <- paste('C:/Users/cmorrow5/Desktop/011420 2DG N1 Q and A/', image_info$Folder, '/',image_info$NADH, sep = "")
+
+###Set FAD file location####
+path_stringF <- paste('C:/Users/cmorrow5/Desktop/011420 2DG N1 Q and A/', image_info$Folder, '/',image_info$FAD, sep = "")
+
+###Set Mask file location####
+path_stringM <- paste('C:/Users/cmorrow5/Desktop/011420 2DG N1 Q and A/Masks/',image_info$NADH, sep = "")
+
+
+nimg.p <- as.matrix(read.table(paste(path_stringN,"_photons.asc", sep = ""), header=FALSE))
+nimg.t1 <- as.matrix(read.table(paste(path_stringN,"_t1.asc", sep = ""), header=FALSE))
+nimg.t2 <- as.matrix(read.table(paste(path_stringN,"_t2.asc", sep = ""), header=FALSE))
+nimg.a1 <- as.matrix(read.table(paste(path_stringN,"_a1[%].asc", sep = ""), header=FALSE))
+nimg.chi <- as.matrix(read.table(paste(path_stringN,"_chi.asc", sep = ""), header=FALSE))
+fimg.p <- as.matrix(read.table(paste(path_stringF,"_photons.asc", sep = ""), header=FALSE))
+fimg.t1 <- as.matrix(read.table(paste(path_stringF,"_t1.asc", sep = ""), header=FALSE))
+fimg.t2 <- as.matrix(read.table(paste(path_stringF,"_t2.asc", sep = ""), header=FALSE))
+fimg.a1 <- as.matrix(read.table(paste(path_stringF,"_a1[%].asc", sep = ""), header=FALSE))
+fimg.a2 <- as.matrix(read.table(paste(path_stringF,"_a2[%].asc", sep = ""), header=FALSE))
+fimg.chi <- as.matrix(read.table(paste(path_stringF,"_chi.asc", sep = ""), header=FALSE))
+#redimg.t1 <- as.matrix(read.table(paste(path_stringN,"-Ch1-_t1.asc", sep = ""), header=FALSE))
+cellmask <- as.matrix(readTIFF(paste(path_stringM,"_photons _cells.tiff", sep = ""), as.is = TRUE))
+cytomask <- as.matrix(readTIFF(paste(path_stringM,"_photons _cyto.tiff", sep = ""), as.is = TRUE))
+#nucmask <- readTIFF(paste(path_stringN,"_photons _nuclei.tiff", sep = ""), as.is = TRUE)
+labmask <- as.matrix(readTIFF(paste(path_stringM,"_photons _cyto.tiff" , sep = ""), as.is = TRUE))
+#MAKE SURE YOU CHANGE THIS DEPENDING ON IMAGE SIZE
+bothmask <- matrix(0L, nrow = 256, ncol = 256)
+bothmask[cytomask>0&labmask>0] = cytomask[cytomask>0&labmask>0]
+bothcellmask <- matrix(0L, nrow = 256, ncol = 256)
+bothcellmask[cellmask>0&labmask>0] = cellmask[cellmask>0&labmask>0]
+
+nv.p <- as.vector((nimg.p))
+nv.t1 <- as.vector((nimg.t1))
+nv.t2 <- as.vector((nimg.t2))
+nv.a1 <- as.vector((nimg.a1))
+nv.chi <- as.vector((nimg.chi))
+fv.p <- as.vector((fimg.p))
+fv.t1 <- as.vector((fimg.t1))
+fv.t2 <- as.vector((fimg.t2))
+fv.a1 <- as.vector((fimg.a1))
+fv.a2 <- as.vector((fimg.a2))
+fv.chi <- as.vector((fimg.chi))
+cells.v <- as.vector((cellmask))
+#nuclei.v <- as.vector((nucmask))
+cyto.v <- as.vector((cytomask))
+label.v <- as.vector((labmask))
+rrv <- nv.p/(nv.p+fv.p)
+nv.tm <- nv.t1*nv.a1/100+nv.t2*(1-nv.a1/100)
+fv.tm <- fv.t1*(fv.a1/100)+fv.t2*(1-fv.a1/100)
+combo.v <- as.vector(bothmask)
+combocell.v <- as.vector(bothcellmask)
+
+pix <- data.frame(nv.p, nv.t1, nv.t2, nv.a1, nv.chi, fv.p, fv.t1, fv.t2, fv.a1, fv.a2, fv.chi, fv.p, fv.a1,  rrv, nv.tm, fv.tm,  cells.v, cyto.v,  label.v, combo.v,combocell.v)
+
+pix <- subset(pix, nv.chi<10000&fv.chi<10000)
+labpix <- subset(pix, cells.v>0 & label.v>0)
+cell_mean <- aggregate(pix, list(pix$cells.v), mean)
+cell_sd <- aggregate(pix, list(pix$cells.v), sd)
+cell_npix <- aggregate(pix, list(pix$cells.v), length)
+sumLabcell <- aggregate(pix, list(pix$combocell.v), length)
+
+
+cell_mean <- subset(cell_mean, select=c("Group.1", "nv.p", "nv.t1", "nv.t2", "nv.a1", "nv.chi", "fv.p", "fv.t1", "fv.t2", "fv.a1", "fv.a2", "fv.chi", "fv.p", "fv.a1", "rrv", "nv.tm", "fv.tm"))
+
+colnames(cell_mean)<-c('cell_index',"n.p.mean", "n.t1.mean", "n.t2.mean", "n.a1.mean", "n.chi.mean", "f.p.mean", "f.t1.mean", "f.t2.mean", "f.a1.mean", "f.a2.mean", "f.chi.mean", "f.p.mean", "f.a1.mean", "rr.mean", "n.tm.mean", "f.tm.mean")
+cell_sd <- subset(cell_sd, select=c("nv.p", "nv.t1", "nv.t2", "nv.a1", "nv.chi", "fv.p", "fv.t1", "fv.t2", "fv.a1", "fv.a2", "fv.chi", "fv.p", "fv.a1", "rrv", "nv.tm", "fv.tm"))
+colnames(cell_sd)<-c("n.p.sd", "n.t1.sd", "n.t2.sd", "n.a1.sd", "n.chi.sd", "f.p.sd", "f.t1.sd", "f.t2.sd", "f.a1.sd", "f.a2.sd", "f.chi.sd", "f.p.sd", "f.a1.sd", "rr.sd", "n.tm.sd", "f.tm.sd")
+cell_npix <- subset(cell_npix, select=c("nv.p"))
+colnames(cell_npix) <- c("npix")
+sumLabcell <- subset(sumLabcell, select=c("Group.1", "nv.p"))
+colnames(sumLabcell) <- c("cell_index","Label_Count")
+
+cell_out <- cbind(cell_mean, cell_sd, cell_npix)
+celllab_out <- sumLabcell
+
+cyto_mean <- aggregate(pix, list(pix$cyto.v), mean)
+cyto_sd <- aggregate(pix, list(pix$cyto.v), sd)
+cyto_npix <- aggregate(pix, list(pix$cyto.v), length)
+sumLab <- aggregate(pix, list(pix$combo.v), length)
+
+cyto_mean <- subset(cyto_mean, select=c("Group.1", "nv.p", "nv.t1", "nv.t2", "nv.a1", "nv.chi", "fv.p", "fv.t1", "fv.t2", "fv.a1", "fv.a2", "fv.chi", "fv.p", "fv.a1", "rrv", "nv.tm", "fv.tm"))
+
+colnames(cyto_mean)<-c('cell_index',"n.p.mean", "n.t1.mean", "n.t2.mean", "n.a1.mean", "n.chi.mean", "f.p.mean", "f.t1.mean", "f.t2.mean", "f.a1.mean", "f.a2.mean", "f.chi.mean", "f.p.mean", "f.a1.mean", "rr.mean", "n.tm.mean", "f.tm.mean")
+cyto_sd <- subset(cyto_sd, select=c("nv.p", "nv.t1", "nv.t2", "nv.a1", "nv.chi", "fv.p", "fv.t1", "fv.t2", "fv.a1", "fv.a2", "fv.chi", "fv.p", "fv.a1", "rrv", "nv.tm", "fv.tm"))
+colnames(cyto_sd)<-c("n.p.sd", "n.t1.sd", "n.t2.sd", "n.a1.sd", "n.chi.sd", "f.p.sd", "f.t1.sd", "f.t2.sd", "f.a1.sd", "f.a2.sd", "f.chi.sd", "f.p.sd", "f.a1.sd", "rr.sd", "n.tm.sd", "f.tm.sd")
+cyto_npix <- subset(cyto_npix, select=c("nv.p"))
+colnames(cyto_npix) <- c("npix")
+
+sumLab <- subset(sumLab, select=c("Group.1", "nv.p"))
+colnames(sumLab) <- c("cell_index","Label_Count")
+
+cyto_out <- cbind(cyto_mean, cyto_sd, cyto_npix)
+cytolab_out <- sumLab
+
+# nuc_mean <- aggregate(pix, list(pix$nuclei.v), mean)
+# nuc_sd <- aggregate(pix, list(pix$nuclei.v), sd)
+# nuc_npix <- aggregate(pix, list(pix$nuclei.v), length)
+# 
+# nuc_mean <- subset(nuc_mean, select=c("Group.1", "nv.p", "nv.t1", "nv.t2", "nv.a1", "nv.chi", "fv.p", "fv.t1", "fv.t2", "fv.a1", "fv.a2", "fv.chi", "fv.p", "fv.a1", "rrv", "nv.tm", "fv.tm"))
+# 
+# colnames(nuc_mean)<-c('cell_index',"n.p.mean", "n.t1.mean", "n.t2.mean", "n.a1.mean", "n.chi.mean", "f.p.mean", "f.t1.mean", "f.t2.mean", "f.a1.mean", "f.a2.mean", "f.chi.mean", "f.p.mean", "f.a1.mean", "rr.mean", "n.tm.mean", "f.tm.mean")
+# nuc_sd <- subset(nuc_sd, select=c("nv.p", "nv.t1", "nv.t2", "nv.a1", "nv.chi", "fv.p", "fv.t1", "fv.t2", "fv.a1", "fv.a2", "fv.chi", "fv.p", "fv.a1", "rrv", "nv.tm", "fv.tm"))
+# colnames(nuc_sd)<-c("n.p.sd", "n.t1.sd", "n.t2.sd", "n.a1.sd", "n.chi.sd", "f.p.sd", "f.t1.sd", "f.t2.sd", "f.a1.sd", "f.a2.sd", "f.chi.sd", "f.p.sd", "f.a1.sd", "rr.sd", "n.tm.sd", "f.tm.sd")
+# nuc_npix <- subset(nuc_npix, select=c("nv.p"))
+# colnames(nuc_npix) <- c("npix")
+# 
+# nuc_out <- cbind(nuc_mean, nuc_sd, nuc_npix)
+
+cell_out$celltype <- rep("cell", nrow(cell_out))
+#nuc_out$celltype <- rep("nucleus", nrow(nuc_out))
+cyto_out$celltype <- rep("cyto", nrow(cyto_out))
+
+celllab_out$celltype <- rep("cell", nrow(celllab_out))
+cytolab_out$celltype <- rep("cyto", nrow(cytolab_out))
+
+outputs <- rbind.fill(cell_out,  cyto_out)
+outputslab <- rbind.fill(cytolab_out,  celllab_out)
+
+outputs$NADH <- rep(image_info$NADH, nrow(outputs))
+outputs$Date <- rep(image_info$Date, nrow(outputs))
+outputs$Group <- rep(image_info$Group, nrow(outputs))
+outputs$Time <- rep(image_info$Time, nrow(outputs))
+
+outputslab$NADH <- rep(image_info$NADH, nrow(outputslab))
+
+#This is everything, all.x=true kept unlabeled cells
+ Labeled_cells <- merge(outputs,outputslab, by = c("NADH","cell_index","celltype"), all.x=TRUE)
+ Labeled_cells <- subset(Labeled_cells, cell_index != 0)
+ Labeled_cells<- subset(Labeled_cells, npix != 1)
+
+
+
+if (i == 1) {final_output <- Labeled_cells}
+else {final_output <- rbind(final_output, Labeled_cells)}
+Sys.sleep(0.1)
+setTkProgressBar(pb, i/nrow(filenames), label=paste( round(i/nrow(filenames)*100, 0),
+                                     "% done"))
+}
+close(pb)
+
+###Set output file location and name###
+setwd("C:/Users/cmorrow5/Desktop/011420 2DG N1 Q and A/")
+write.csv(final_output,"final_output_011420.csv")
+
+
+```
+

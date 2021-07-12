@@ -1,0 +1,383 @@
+---
+title: "OMI - 2 condition anlaysis kit"
+output: html_notebook
+---
+
+##This is code to generate:##
+##plots with statistics for comparing 2 data sets together##
+##dimension reduction plots##
+##machine learning plots##
+
+##Data must be located on desktop with a colum titled "Group" that has labels of either "AC" or "QC" and a column called "celltype" that has values equal to "cyto"##
+
+```{r}
+##load data and select A and Q sets##
+library(gtools)
+library(ggplot2)
+library(ggsci)
+library(tidyverse)
+rm(list=ls())
+filename <- "allfinaloutputqNSCaNSC masterjust8.csv"
+NSCdata_rawtitle <- paste('C:/Users/cmorrow5/Desktop/',filename, sep = "")
+NSCdata_raw <- read.csv(NSCdata_rawtitle)
+NSCdatacyto <- subset(NSCdata_raw, celltype=="cyto")
+mygroups <- c("AC","QC")
+NSCdatacontrol <- subset(NSCdatacyto, Group%in%mygroups)
+NSCdatacontrol$Group <- factor(NSCdatacontrol$Group, levels=c("AC","QC"))
+NSCdata <- NSCdatacontrol
+
+colorA <- "darkblue" 
+colorQ <- "red" 
+plotcolors <- c(colorA, colorQ)
+plotcolors
+
+##normalize data set##
+myvars <- c("n.p.mean", "f.p.mean", "n.a1.mean", "n.t1.mean", "n.t2.mean", "f.a1.mean", "f.t1.mean", "f.t2.mean", "Group")
+NSCdata_reduc <- NSCdatacontrol[myvars]
+last <- ncol(NSCdata_reduc)
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+NSCdata_reduc_norm <- range01(NSCdata_reduc[,-last])
+Group <- NSCdatacontrol$Group
+NSCdata_reduc_norm_Group <- data.frame(NSCdata_reduc_norm, Group)
+set.seed(1)
+```
+
+filename <- "042219_flim_outputs_cyto.csv"
+filename
+NSCdata_raw <- read.csv('C:/Users/cmorrow5/Desktop/',filename,')
+NSCdata_raw
+
+
+##Number of cells/group##
+```{r}
+ftable(NSCdatacontrol$Group)
+```
+##NAD(P)H Intensity##
+```{r}
+setwd("C:/Users/cmorrow5/Desktop/")
+pdf("1.pdf")
+par(oma=c(3,0.5,0.5,0.5))
+
+fit <- glm(n.p.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=n.p.mean, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+  scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("NAD(P)H Intensity"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(1.5), label=Pval), size=10, color="red")
+
+dev.off()
+
+```
+
+
+##FAD Intensity##
+```{r}
+setwd("C:/Users/cmorrow5/Desktop/")
+pdf("2.pdf")
+par(oma=c(3,0.5,0.5,0.5))
+
+fit <- glm(f.p.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=f.p.mean, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+  scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("FAD Intensity"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(1.5), label=Pval), size=10, color="red")
+
+dev.off()
+```
+
+
+
+Redox ratio all cells
+```{r}
+
+
+fit <- glm(rr.mean~ Group, data=NSCdata)
+graphLabelsQC <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=rr.mean, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+  scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("Redox Ratio"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(0.9), label=Pval), size=10, color="red")
+
+
+```
+
+NAD Lifetime
+```{r}
+
+setwd("C:/Users/cmorrow5/Desktop/")
+pdf("3.pdf")
+par(oma=c(3,0.5,0.5,0.5))
+
+fit <- glm(n.tm.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=n.tm.mean/1000, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+  scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("NAD(P)H  " *tau[m]* " (ns)"))+
+  geom_text(data=graphLabelsQC, aes(x=Group, y = c(0.085), label=Pval), size=10, color="red")
+
+dev.off()
+```
+
+
+```{r}
+
+setwd("C:/Users/cmorrow5/Desktop/")
+pdf("4.pdf")
+par(oma=c(3,0.5,0.5,0.5))
+
+fit <- glm(n.a1.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=n.a1.mean/1000, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+  scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("NAD(P)H  " *alpha[1]* " (ns)"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(0.085), label=Pval), size=10, color="red")
+
+dev.off()
+```
+
+
+```{r}
+fit <- glm(n.t1.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=n.t1.mean/1000, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+  scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("NAD(P)H  " *tau[1]* " (ns)"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(0.75), label=Pval), size=10, color="red")
+```
+```{r}
+fit <- glm(n.t2.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=n.t2.mean/1000, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+  scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("NAD(P)H  " *tau[2]* " (ns)"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(3.2), label=Pval), size=10, color="red")
+```
+
+FAD Lifetime
+```{r}
+
+setwd("C:/Users/cmorrow5/Desktop/")
+pdf("5.pdf")
+par(oma=c(3,0.5,0.5,0.5))
+
+fit <- glm(f.tm.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=f.tm.mean/1000, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+  scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("FAD  " *tau[m]* " (ns)"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(0.1), label=Pval), size=10, color="red")
+
+dev.off()
+```
+
+
+```{r}
+
+setwd("C:/Users/cmorrow5/Desktop/")
+pdf("6.pdf")
+par(oma=c(3,0.5,0.5,0.5))
+
+fit <- glm(f.a1.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=f.a1.mean/1000, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+   scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("FAD  " *alpha[1]* " (ns)"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(0.1), label=Pval), size=10, color="red")
+
+dev.off()
+```
+
+
+```{r}
+fit <- glm(f.t1.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+ggplot(data=NSCdata, aes(x=Group, y=f.t1.mean/1000, color=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+   scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("FAD  " *tau[1]* " (ns)"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(0.5), label=Pval), size=10, color="red")
+```
+
+
+```{r}
+fit <- glm(f.t2.mean~ Group, data=NSCdata)
+graphLabels <- data.frame(Group = c("QC"),Pval=c(stars.pval(summary(fit)$coefficients[2,4])))
+par(pty="s")
+ggplot(data=NSCdata, aes(x=Group, y=f.t2.mean/1000, col=as.factor(Group)))+geom_violin(size=1)+
+  stat_summary(fun.data="mean_cl_boot", size=0.75)+
+  theme_classic(base_size = 28, base_family = "")+
+  scale_color_manual(values=plotcolors)+
+  theme(legend.position = "none")+
+  ylab(bquote("FAD  " *tau[2]* " (ns)"))+
+  geom_text(data=graphLabels, aes(x=Group, y = c(2.5), label=Pval), size=10, color="red")
+```
+pca <- prcomp(NSCdata_reduc_norm_Group[,-last], scale=TRUE)
+pca.var <- pca$sdev^2
+pca.var.per <- round(pca.var/sum(pca.var)*100, 1)
+barplot(pca.var.per, main="Scree Plot", xlab="Principal Component", ylab="Percent Variation")
+par(mar=c(5,7,1,1), mgp=c(3,1,0))
+plot(pca$x[,1], pca$x[,2], pch=16, xlab="PC1", ylab="PC2", "cex.axis"=1, las=1, col=c(colorA, colorQ)[as.numeric(NSCdata_reduc_norm_Group$Group)], cex.lab=2, cex.axis=2)
+ legend("bottomleft", legend=c("aNSC", "qNSC"), pch=16, col=plotcolors, lwd=4, seg.len=0, bty="n") 
+
+##PCA##
+```{r}
+
+pca <- prcomp(NSCdata_reduc_norm_Group[,-last], scale=TRUE)
+pca.var <- pca$sdev^2
+pca.var.per <- round(pca.var/sum(pca.var)*100, 1)
+barplot(pca.var.per, main="Scree Plot", xlab="Principal Component", ylab="Percent Variation")
+par(mar=c(5,7,1,1), mgp=c(3,1,0), pty="s")
+plot(pca$x[,1], pca$x[,2], pch=16, xlab="Principal Component 1", ylab="Principal Component 2", "cex.axis"=1, las=1, col=c(colorA, colorQ)[as.numeric(NSCdata_reduc_norm_Group$Group)], cex.lab=2, cex.axis=2)
+ legend(x=-5.4, y=-3.1, legend=c("aNSC", "qNSC"), pch=16, col=plotcolors, lwd=4, seg.len=0, bty="n", cex=1.5, pt.cex=1) 
+```
+
+##tSNE##
+```{r}
+library(Rtsne)
+set.seed(1)
+tsne <- Rtsne(NSCdata_reduc_norm_Group[,-last], dims=2, perplexity = 20, verbose=TRUE,max_iter=1000)
+colors = rainbow(length(unique(NSCdata_reduc_norm_Group$Group)))
+names(colors) = unique(NSCdata_reduc_norm_Group$Group)
+par(mar=c(5,7,1,1), mgp=c(4,1,0), pty="s")
+plot(tsne$Y[,1], tsne$Y[,2], pch=16, xlab="tSNE dimension 1", ylab="tSNE dimension 2", "cex.lab"=2, "cex.axis"=2, las=1, col=c(colorA, colorQ)[as.numeric(NSCdata_reduc_norm_Group$Group)])
+legend(x=7, y=-19, legend=c("aNSC", "qNSC"), pch=16, col=plotcolors, lwd=4, seg.len=0, bty="n", cex=1.75, pt.cex=1) 
+```
+
+
+##UMAP##
+```{r}
+library(umap)
+set.seed(1)
+umap <- umap(NSCdata_reduc_norm_Group[,-last])
+
+colors = rainbow(length(unique(NSCdata_reduc_norm_Group$Group)))
+names(colors) = unique(NSCdata_reduc_norm_Group$Group)
+par(mar=c(5,7,1,1), mgp=c(3,1,0), pty="s")
+plot(umap$layout[,1], umap$layout[,2], pch=16, xlab="UMAP dimension 1", ylab="UMAP dimension 2", "cex.lab"=2, "cex.axis"=2, las=1, col=c(colorA, colorQ)[as.numeric(NSCdata_reduc_norm_Group$Group)])
+legend(x=1.7, y=-4.2, legend=c("aNSC", "qNSC"), pch=16, col=plotcolors, lwd=4, seg.len=0, bty="n", cex=1.75, pt.cex=1) 
+
+```
+
+##LogisticRegression##
+```{r}
+
+setwd("C:/Users/cmorrow5/Desktop/")
+pdf("7.pdf")
+par(oma=c(3,0.5,0.5,0.5))
+
+
+library(pROC) 
+library(randomForest)
+both <- subset(NSCdata_reduc_norm_Group, select = -c(n.p.mean,f.p.mean))
+justfadflim <- subset(NSCdata_reduc_norm_Group, select = -c(n.t1.mean,n.t2.mean,n.a1.mean,n.p.mean,f.p.mean))
+justnadflim <- subset(NSCdata_reduc_norm_Group, select = -c(f.t1.mean,f.t2.mean,f.a1.mean,f.p.mean,n.p.mean))
+justfadi <- subset(NSCdata_reduc_norm_Group, select = -c(n.t1.mean,n.t2.mean,n.a1.mean,n.p.mean,f.t1.mean,f.t2.mean,f.a1.mean))
+justnadi <- subset(NSCdata_reduc_norm_Group, select = -c(f.t1.mean,f.t2.mean,f.a1.mean,f.p.mean,n.t1.mean,n.t2.mean,n.a1.mean))
+
+rfmodelall <- glm(Group ~ ., data=NSCdata_reduc_norm_Group, family=binomial)
+rfmodelfadflim <- glm(Group ~ ., data=justfadflim, family=binomial)
+rfmodelnadflim <- glm(Group ~ ., data=justnadflim, family=binomial)
+rfmodelfadi <- glm(Group ~ ., data=justfadi, family=binomial)
+rfmodelnadi <- glm(Group ~ ., data=justnadi, family=binomial)
+
+rocmodelall <- roc(NSCdata_reduc_norm_Group$Group, rfmodelall$fitted.values, plot=FALSE)
+rocmodelfadflim <- roc(NSCdata_reduc_norm_Group$Group, rfmodelfadflim$fitted.values, plot=FALSE)
+rocmodelnadflim <- roc(NSCdata_reduc_norm_Group$Group, rfmodelnadflim$fitted.values, plot=FALSE)
+rocmodelfadi <- roc(NSCdata_reduc_norm_Group$Group, rfmodelfadi$fitted.values, plot=FALSE)
+rocmodelnadi <- roc(NSCdata_reduc_norm_Group$Group, rfmodelnadi$fitted.values, plot=FALSE)
+
+par(mar=c(4, 4, 4, 4), mgp=c(4,1,0), pty="s")
+  roc(NSCdata_reduc_norm_Group$Group, rfmodelall$fitted.values, col="red", print.auc=TRUE, print.auc.x=0.3, print.auc.y=0.65, plot=TRUE, "cex.lab"=2, "cex.axis"=2, las=1)
+#plot.roc(rocmodelfadflim, rfmodelfadflim$fitted.values, col="blue", print.auc=TRUE, print.auc.x=0.3, print.auc.y=0.6, add=TRUE, plot=TRUE)
+#plot.roc(rocmodelnadflim, rfmodelnadflim$fitted.values, col="green", print.auc=TRUE, print.auc.x=0.3, print.auc.y=0.55, add=TRUE, plot=TRUE)
+#plot.roc(rocmodelfadi, rfmodelfadi$fitted.values, col="orange", print.auc=TRUE, print.auc.x=0.3, print.auc.y=0.5, add=TRUE, plot=TRUE)
+#plot.roc(rocmodelnadi, rfmodelnadi$fitted.values, col="purple", print.auc=TRUE, print.auc.x=0.3, print.auc.y=0.45, add=TRUE, plot=TRUE)
+
+#legend("bottomright", legend=c("All endpoints", "FAD FLIM", "NAD(P)H FLIM", "FAD Intensity", "NAD(P)H Intensity"), col=c("red", "blue", "green", "orange", "purple"), lwd=4, cex=0.9)
+
+  dev.off()
+
+```
+
+
+
+
+##RandomForest##
+```{r}
+library(pROC) 
+library(randomForest)
+
+both <- subset(NSCdata_reduc_norm_Group, select = -c(n.p.mean,f.p.mean))
+justfadflim <- subset(NSCdata_reduc_norm_Group, select = -c(n.t1.mean,n.t2.mean,n.a1.mean,n.p.mean,f.p.mean))
+justnadflim <- subset(NSCdata_reduc_norm_Group, select = -c(f.t1.mean,f.t2.mean,f.a1.mean,f.p.mean,n.p.mean))
+justfadi <- subset(NSCdata_reduc_norm_Group, select = -c(n.t1.mean,n.t2.mean,n.a1.mean,n.p.mean,f.t1.mean,f.t2.mean,f.a1.mean))
+justnadi <- subset(NSCdata_reduc_norm_Group, select = -c(f.t1.mean,f.t2.mean,f.a1.mean,f.p.mean,n.t1.mean,n.t2.mean,n.a1.mean))
+
+
+rfmodelall <- randomForest(Group ~ ., data=both, proximity=TRUE)
+rfmodelfadflim <- randomForest(Group ~ ., data=justfadflim, proximity=TRUE)
+rfmodelnadflim <- randomForest(Group ~ ., data=justnadflim, proximity=TRUE)
+rfmodelfadi <- randomForest(Group ~ ., data=justfadi, proximity=TRUE)
+rfmodelnadi <- randomForest(Group ~ ., data=justnadi, proximity=TRUE)
+
+
+onevoteAll <- rfmodelall$votes[,1]
+onevotefadflim <- rfmodelfadflim$votes[,1]
+onevotenadflim <- rfmodelnadflim$votes[,1]
+onevotenadi <- rfmodelnadi$votes[,1]
+onevotefadi <- rfmodelfadi$votes[,1]
+
+rocmodelall <- roc(NSCdata_reduc_norm_Group$Group, onevoteAll, plot=FALSE)
+rocmodelfadflim <- roc(NSCdata_reduc_norm_Group$Group, onevotefadflim, plot=FALSE)
+rocmodelnadflim <- roc(NSCdata_reduc_norm_Group$Group, onevotenadflim, plot=FALSE)
+rocmodelfadi <- roc(NSCdata_reduc_norm_Group$Group, onevotefadi, plot=FALSE)
+rocmodelnadi <- roc(NSCdata_reduc_norm_Group$Group, onevotenadi, plot=FALSE)
+
+par(mar = c(4, 4, 4, 4), pty="s", mgp=c(4,1,0))
+
+  roc(NSCdata_reduc_norm_Group$Group, onevoteAll, col="red", print.auc=TRUE, print.auc.x=0.2, print.auc.y=0.75, plot=TRUE, "cex.lab"=2, "cex.axis"=2, las=1)
+plot.roc(rocmodelfadflim, onevotefadflim, col="blue", print.auc=TRUE, print.auc.x=0.2, print.auc.y=0.7, add=TRUE, plot=TRUE)
+plot.roc(rocmodelnadflim, onevotenadflim, col="green", print.auc=TRUE, print.auc.x=0.2, print.auc.y=0.65, add=TRUE, plot=TRUE)
+plot.roc(rocmodelfadi, onevotefadi, col="orange", print.auc=TRUE, print.auc.x=0.2, print.auc.y=0.60, add=TRUE, plot=TRUE)
+plot.roc(rocmodelnadi, onevotenadi, col="purple", print.auc=TRUE, print.auc.x=0.2, print.auc.y=0.55, add=TRUE, plot=TRUE)
+
+legend("bottomright", legend=c("All endpoints", "FAD FLIM", "NAD(P)H FLIM", "FAD Intensity", "NAD(P)H Intensity"), col=c("red", "blue", "green", "orange", "purple"), lwd=4, cex=0.8)
+
+```
+
+
+
+
+
+
+
