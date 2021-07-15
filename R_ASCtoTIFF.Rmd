@@ -1,0 +1,26 @@
+
+
+```{r}
+library(tiff)
+library(raster)
+library(rgdal)
+
+folder_name <- choose.dir(default = "", caption = "Select folder")
+file_names = strsplit(list.files(folder_name),'""')
+photons <- "photons.asc"
+
+#i <- file_names[[8]]
+
+for (i in file_names){
+  if (grepl(photons,i, fixed=TRUE)) {
+    newname <- strsplit(i,'.asc')
+  n_photons <- raster(as.matrix(read.table(paste(folder_name,'/',i, sep = ""), header=FALSE)))
+  setwd(folder_name)
+  writeRaster(n_photons, filename = paste(newname, ".tif"))
+  }
+  
+}
+  
+```
+
+
